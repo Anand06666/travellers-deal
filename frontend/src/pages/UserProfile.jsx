@@ -38,7 +38,7 @@ const UserProfile = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4">
             <div className="container mx-auto max-w-6xl">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Sidebar: Profile Info */}

@@ -83,10 +83,22 @@ const VendorDashboard = () => {
         }
     };
 
+    // Helper to safely format dates
+    const formatDate = (dateValue) => {
+        if (!dateValue) return 'N/A';
+        const date = new Date(dateValue);
+        if (isNaN(date.getTime())) return 'Invalid Date';
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div></div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-12">
+        <div className="min-h-screen bg-gray-50 pb-12 pt-20">
             {/* Header Section */}
             <div className="bg-white border-b border-gray-200">
                 <div className="container mx-auto px-4 py-8">
@@ -188,7 +200,7 @@ const VendorDashboard = () => {
                                                 <tr key={booking._id} className="hover:bg-white transition-colors">
                                                     <td className="px-6 py-4 font-medium text-gray-900">{booking.experience?.title}</td>
                                                     <td className="px-6 py-4 text-gray-600">{booking.user?.name}</td>
-                                                    <td className="px-6 py-4 text-gray-500">{new Date(booking.date).toLocaleDateString()}</td>
+                                                    <td className="px-6 py-4 text-gray-500">{formatDate(booking.date)}</td>
                                                     <td className="px-6 py-4 font-bold text-gray-900">${booking.totalPrice}</td>
                                                     <td className="px-6 py-4">
                                                         <span className={`px - 2 py - 1 rounded - full text - xs font - bold uppercase ${getStatusColor(booking.status)} `}>
@@ -277,7 +289,7 @@ const VendorDashboard = () => {
                                                 <div className="text-sm font-medium text-gray-900">{booking.user?.name}</div>
                                                 <div className="text-xs text-gray-400">{booking.user?.email}</div>
                                             </td>
-                                            <td className="px-6 py-4 text-gray-500">{new Date(booking.date).toLocaleDateString()}</td>
+                                            <td className="px-6 py-4 text-gray-500">{formatDate(booking.date)}</td>
                                             <td className="px-6 py-4 text-gray-700">{booking.slots}</td>
                                             <td className="px-6 py-4 font-bold text-gray-900">${booking.totalPrice}</td>
                                             <td className="px-6 py-4">

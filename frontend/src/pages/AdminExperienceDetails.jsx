@@ -46,7 +46,7 @@ const AdminExperienceDetails = () => {
     if (loading) return <div className="p-8 text-center">Loading...</div>;
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8 font-sans">
+        <div className="min-h-screen bg-gray-50 pt-20 p-8 font-sans">
             <div className="container mx-auto max-w-4xl">
                 <button onClick={() => navigate('/admin')} className="flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 font-medium">
                     <FaArrowLeft /> Back to Dashboard

@@ -22,6 +22,7 @@ const AddExperience = () => {
         knowBeforeYouGo: [],
         meetingPoint: '',
         whatToBring: [],
+        notSuitableFor: [],
         languages: [],
         timeSlots: [],
         capacity: 20,
