@@ -36,7 +36,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/experiences" element={<ExperienceList />} />
-              <Route path="/experiences/:id" element={<ExperienceDetail />} />
+              <Route path="/experience/:id" element={<ExperienceDetail />} />
               <Route path="/checkout" element={<Payment />} />
               <Route path="/completion" element={<Completion />} />
               <Route path="/admin" element={<AdminDashboard />} />
