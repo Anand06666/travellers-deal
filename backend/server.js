@@ -77,9 +77,15 @@ app.use('/api/users', userRoutes);
 app.use('/api/cart', cartRoutes);
 
 
-const __dirname1 = path.resolve();
-app.use('/uploads', express.static(path.join(__dirname1, '/uploads')));
-app.use('/uploadsbyvenders', express.static(path.join(__dirname1, '/uploadsbyvenders')));
+// Use __dirname for consistent path resolution regardless of CWD
+const uploadsPath = path.join(__dirname, 'uploads');
+const vendorUploadsPath = path.join(__dirname, 'uploadsbyvenders');
+
+console.log('Serving static uploads from:', uploadsPath);
+console.log('Serving vendor uploads from:', vendorUploadsPath);
+
+app.use('/uploads', express.static(uploadsPath));
+app.use('/uploadsbyvenders', express.static(vendorUploadsPath));
 
 // Error Handling Middleware
 app.use(errorHandler);
