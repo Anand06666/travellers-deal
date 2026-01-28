@@ -5,7 +5,8 @@ const fs = require('fs');
 
 const storage = multer.diskStorage({
     destination(req, file, cb) {
-        const uploadPath = 'uploadsbyvenders/';
+        // Use absolute path for safety
+        const uploadPath = path.join(path.resolve(), 'uploadsbyvenders');
         if (!fs.existsSync(uploadPath)) {
             fs.mkdirSync(uploadPath, { recursive: true });
         }

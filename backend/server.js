@@ -79,6 +79,7 @@ app.use('/api/cart', cartRoutes);
 
 const __dirname1 = path.resolve();
 app.use('/uploads', express.static(path.join(__dirname1, '/uploads')));
+app.use('/uploadsbyvenders', express.static(path.join(__dirname1, '/uploadsbyvenders')));
 
 // Error Handling Middleware
 app.use(errorHandler);

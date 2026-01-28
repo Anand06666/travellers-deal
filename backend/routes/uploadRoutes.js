@@ -5,7 +5,8 @@ const upload = require('../middleware/uploadMiddleware');
 router.post('/', upload.single('image'), (req, res) => {
     res.send({
         message: 'Image uploaded',
-        image: `/${req.file.path.replace(/\\/g, '/')}`,
+        // Return valid URL path regardless of file system path
+        image: `/uploadsbyvenders/${req.file.filename}`,
     });
 });
 
