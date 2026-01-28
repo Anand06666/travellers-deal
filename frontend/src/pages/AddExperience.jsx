@@ -1,12 +1,14 @@
-import React, { useState, useContext } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_URL } from '../config/api';
 import { FaCloudUploadAlt, FaPlus, FaTrash, FaMapMarkerAlt, FaClock, FaLanguage, FaListUl, FaSuitcase, FaUserSlash, FaCheck, FaDollarSign, FaCalendarAlt, FaInfoCircle, FaUsers, FaUtensils } from 'react-icons/fa';
 
 const AddExperience = () => {
     const navigate = useNavigate();
+    const { id } = useParams(); // Get ID from URL if editing
     const [uploading, setUploading] = useState(false);
+    const [loading, setLoading] = useState(false); // Loading state for fetching data
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -29,6 +31,55 @@ const AddExperience = () => {
         privateGroup: false,
         dietaryOptions: []
     });
+
+    // Fetch existing data if editing
+    useEffect(() => {
+        if (id) {
+            const fetchExperience = async () => {
+                setLoading(true);
+                try {
+                    const token = localStorage.getItem('token');
+                    const config = {
+                        headers: { Authorization: `Bearer ${token}` },
+                    };
+                    const { data } = await axios.get(`${API_URL}/experiences/${id}`, config);
+
+                    // Populate form with fetched data
+                    setFormData({
+                        title: data.title || '',
+                        description: data.description || '',
+                        category: data.category || 'Adventure',
+                        price: data.price || '',
+                        currency: data.currency || 'USD',
+                        duration: data.duration || '',
+                        location: {
+                            city: data.location?.city || '',
+                            country: data.location?.country || ''
+                        },
+                        images: data.images || [],
+                        highlights: data.highlights || [],
+                        itinerary: data.itinerary || [],
+                        includes: data.includes || [],
+                        knowBeforeYouGo: data.knowBeforeYouGo || [],
+                        meetingPoint: data.meetingPoint || '',
+                        whatToBring: data.whatToBring || [],
+                        notSuitableFor: data.notSuitableFor || [],
+                        languages: data.languages || [],
+                        timeSlots: data.timeSlots || [],
+                        capacity: data.capacity || 20,
+                        privateGroup: data.privateGroup || false,
+                        dietaryOptions: data.dietaryOptions || []
+                    });
+                } catch (error) {
+                    console.error('Error fetching experience details:', error);
+                    alert('Failed to load experience details.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchExperience();
+        }
+    }, [id]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -116,7 +167,7 @@ const AddExperience = () => {
             const token = localStorage.getItem('token') || (JSON.parse(localStorage.getItem('user'))?.token);
 
             if (!token) {
-                alert('You must be logged in to add an experience');
+                alert('You must be logged in to perform this action');
                 return;
             }
 
@@ -125,13 +176,29 @@ const AddExperience = () => {
                     Authorization: `Bearer ${token}`,
                 },
             };
-            await axios.post(`${API_URL}/experiences`, formData, config);
+
+            if (id) {
+                // UPDATE existing experience
+                await axios.put(`${API_URL}/experiences/${id}`, formData, config);
+            } else {
+                // CREATE new experience
+                await axios.post(`${API_URL}/experiences`, formData, config);
+            }
+
             navigate('/vendor/dashboard');
         } catch (error) {
             console.error(error);
-            alert('Error creating experience. Please check your network and try again.');
+            alert(`Error ${id ? 'updating' : 'creating'} experience. Please check your network and try again.`);
         }
     };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 pb-20 font-sans text-gray-900">
@@ -141,14 +208,14 @@ const AddExperience = () => {
                     <button onClick={() => navigate('/vendor/dashboard')} className="text-gray-500 hover:text-gray-900 font-medium text-sm flex items-center gap-2 transition-colors">
                         &larr; Back to Dashboard
                     </button>
-                    <div className="text-sm font-bold text-gray-400">Step 1 of 1</div>
+                    <div className="text-sm font-bold text-gray-400">{id ? 'Editing Mode' : 'Step 1 of 1'}</div>
                 </div>
             </div>
 
             <div className="container mx-auto px-4 max-w-3xl mt-10">
                 <div className="text-center mb-10">
-                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">Create a New Experience</h1>
-                    <p className="text-gray-500 text-lg">Share your unique activity with the world.</p>
+                    <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight mb-2">{id ? 'Edit Experience' : 'Create a New Experience'}</h1>
+                    <p className="text-gray-500 text-lg">{id ? 'Update your listing details below.' : 'Share your unique activity with the world.'}</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
@@ -618,7 +685,7 @@ const AddExperience = () => {
                                     disabled={uploading}
                                     className={`flex-1 sm:flex-none px-8 py-3 bg-primary hover:bg-cyan-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-200 transition-all transform active:scale-95 ${uploading ? 'opacity-70 cursor-wait' : ''}`}
                                 >
-                                    {uploading ? 'Publishing...' : 'Publish Experience'}
+                                    {uploading ? 'Processing...' : (id ? 'Update Experience' : 'Publish Experience')}
                                 </button>
                             </div>
                         </div>

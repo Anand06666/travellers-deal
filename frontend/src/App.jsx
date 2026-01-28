@@ -45,6 +45,7 @@ function App() {
               <Route path="/admin/experience/:id" element={<AdminExperienceDetails />} />
               <Route path="/vendor/dashboard" element={<VendorDashboard />} />
               <Route path="/vendor/add" element={<AddExperience />} />
+              <Route path="/vendor/edit/:id" element={<AddExperience />} />
               <Route path="/vendor/register" element={<VendorRegister />} />
               <Route path="/profile" element={<UserProfile />} />
               <Route path="/login" element={<Login />} />

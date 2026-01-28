@@ -247,9 +247,9 @@ const VendorDashboard = () => {
                                     </div>
 
                                     <div className="flex gap-2">
-                                        <button className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-sm transition-colors border border-gray-200">
+                                        <Link to={`/vendor/edit/${exp._id}`} className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold text-sm transition-colors border border-gray-200 text-center">
                                             Edit
-                                        </button>
+                                        </Link>
                                         <button
                                             onClick={() => handleDelete(exp._id)}
                                             className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg font-semibold text-sm transition-colors border border-red-100"
