@@ -80,7 +80,9 @@ const Payment = () => {
                                         experienceId,
                                         date,
                                         slots,
-                                        timeSlot
+                                        timeSlot,
+                                        paymentStatus: 'paid',
+                                        paymentId: response.razorpay_payment_id
                                     },
                                     config
                                 );

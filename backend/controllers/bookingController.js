@@ -5,7 +5,7 @@ const Experience = require('../models/Experience');
 // @route   POST /api/bookings
 // @access  Private
 const createBooking = async (req, res) => {
-    const { experienceId, date, slots, timeSlot } = req.body;
+    const { experienceId, date, slots, timeSlot, paymentStatus, paymentId } = req.body;
 
     try {
         const experience = await Experience.findById(experienceId);
@@ -24,7 +24,8 @@ const createBooking = async (req, res) => {
             slots,
             totalPrice,
             status: 'pending',
-            paymentStatus: 'pending',
+            paymentStatus: paymentStatus || 'pending',
+            paymentId: paymentId || null,
         });
 
         const createdBooking = await booking.save();
