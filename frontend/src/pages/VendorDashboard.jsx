@@ -25,12 +25,12 @@ const VendorDashboard = () => {
 
             try {
                 const config = {
-                    headers: { Authorization: `Bearer ${token} ` },
+                    headers: { Authorization: `Bearer ${token}` },
                 };
 
                 const [expRes, bookRes] = await Promise.all([
-                    axios.get(`${API_URL} /experiences/my`, config),
-                    axios.get(`${API_URL} /bookings/vendor`, config)
+                    axios.get(`${API_URL}/experiences/my`, config),
+                    axios.get(`${API_URL}/bookings/vendor`, config)
                 ]);
 
                 setExperiences(expRes.data);
@@ -48,11 +48,11 @@ const VendorDashboard = () => {
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this experience?')) {
             try {
-                const token = user?.token || localStorage.getItem('token');
+                const token = localStorage.getItem('token');
                 const config = {
-                    headers: { Authorization: `Bearer ${token} ` },
+                    headers: { Authorization: `Bearer ${token}` },
                 };
-                await axios.delete(`${API_URL} /experiences/${id} `, config);
+                await axios.delete(`${API_URL}/experiences/${id}`, config);
                 setExperiences(experiences.filter(exp => exp._id !== id));
             } catch (error) {
                 console.error('Error deleting experience:', error);

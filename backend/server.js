@@ -17,6 +17,9 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet());
 app.use(compression());
 
+// Trust proxy - needed when behind reverse proxy (production)
+app.set('trust proxy', 1);
+
 // Logger (only in dev/test)
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));

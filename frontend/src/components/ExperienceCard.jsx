@@ -26,9 +26,9 @@ const ExperienceCard = ({ experience }) => {
             };
 
             if (isInWishlist) {
-                await axios.delete(`${API_URL} /users/wishlist / ${experience._id} `, config);
+                await axios.delete(`${API_URL}/users/wishlist/${experience._id}`, config);
             } else {
-                await axios.post(`${API_URL} /users/wishlist / ${experience._id} `, {}, config);
+                await axios.post(`${API_URL}/users/wishlist/${experience._id}`, {}, config);
             }
             refreshUser();
         } catch (error) {
@@ -37,7 +37,7 @@ const ExperienceCard = ({ experience }) => {
     };
 
     return (
-        <Link to={`/ experience / ${experience._id} `} className="block group">
+        <Link to={`/experience/${experience._id}`} className="block group">
             <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 h-full flex flex-col relative">
                 <div className="relative aspect-[4/3] overflow-hidden">
                     <img
