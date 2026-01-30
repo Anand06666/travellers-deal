@@ -105,11 +105,22 @@ const AddExperience = () => {
                 },
             };
 
+            // Helper to get base URL safely (removes trailing slash from replacement if needed)
+            const getBaseUrl = () => API_URL.replace(/\/api\/?$/, '');
+
             for (const file of files) {
                 const imageData = new FormData();
                 imageData.append('image', file);
                 const { data } = await axios.post(`${API_URL}/upload`, imageData, config);
-                const imagePath = data.image.startsWith('http') ? data.image : `${API_URL.replace('/api', '')}${data.image}`;
+
+                let imagePath = data.image;
+                if (!imagePath.startsWith('http')) {
+                    // Ensure we don't end up with double slashes between base and path
+                    const baseUrl = getBaseUrl();
+                    const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+                    imagePath = `${baseUrl}${cleanPath}`;
+                }
+
                 newImages.push(imagePath);
             }
 
@@ -306,7 +317,22 @@ const AddExperience = () => {
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                                     {formData.images.map((img, index) => (
                                         <div key={index} className="relative group overflow-hidden rounded-xl shadow-md cursor-pointer aspect-video">
-                                            <img src={img} alt={`Preview ${index}`} className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500" />
+                                            <img
+                                                src={img}
+                                                alt={`Preview ${index}`}
+                                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                                                onError={(e) => {
+                                                    e.target.onerror = null; // Prevent infinite loop
+                                                    // Try to reload with a timestamp to bypass cache if it's a fresh upload
+                                                    if (!e.target.src.includes('?retry=')) {
+                                                        setTimeout(() => {
+                                                            e.target.src = `${img}?retry=${Date.now()}`;
+                                                        }, 1000); // Wait 1 second before retry
+                                                    } else {
+                                                        e.target.src = 'https://placehold.co/400x300?text=Load+Failed';
+                                                    }
+                                                }}
+                                            />
                                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                                 <button
                                                     type="button"
