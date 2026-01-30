@@ -41,7 +41,11 @@ const ExperienceCard = ({ experience }) => {
             <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100 h-full flex flex-col relative">
                 <div className="relative aspect-[4/3] overflow-hidden">
                     <img
-                        src={experience.images && experience.images.length > 0 ? `${API_URL.replace('/api', '')}${experience.images[0]}` : 'https://placehold.co/400x300'}
+                        src={experience.images && experience.images.length > 0
+                            ? (experience.images[0].startsWith('http')
+                                ? experience.images[0]
+                                : `${API_URL.replace('/api', '')}${experience.images[0]}`)
+                            : 'https://placehold.co/400x300'}
                         alt={experience.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />

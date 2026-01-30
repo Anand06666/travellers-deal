@@ -142,7 +142,7 @@ const Home = () => {
                         destinations.slice(0, 6).map(dest => (
                             <Link to={`/experiences?keyword=${dest.city}`} key={dest.city} className="relative aspect-square rounded-xl overflow-hidden group cursor-pointer block shadow-sm">
                                 <img
-                                    src={dest.image || `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=400&text=${dest.city}`}
+                                    src={dest.image ? (dest.image.startsWith('http') ? dest.image : `${API_URL.replace('/api', '')}${dest.image}`) : `https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&q=80&w=400&text=${dest.city}`}
                                     alt={dest.city}
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                                     onError={(e) => e.target.src = 'https://placehold.co/400x300?text=City'}

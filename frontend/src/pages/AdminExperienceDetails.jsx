@@ -87,7 +87,7 @@ const AdminExperienceDetails = () => {
                     {/* Header Image */}
                     <div className="h-64 w-full bg-gray-200 relative">
                         {experience.images && experience.images[0] ? (
-                            <img src={experience.images[0]} alt="" className="w-full h-full object-cover" />
+                            <img src={experience.images[0].startsWith('http') ? experience.images[0] : `${API_URL.replace('/api', '')}${experience.images[0]}`} alt="" className="w-full h-full object-cover" />
                         ) : (
                             <div className="flex items-center justify-center h-full text-gray-400">No Image</div>
                         )}

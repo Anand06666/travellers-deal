@@ -226,7 +226,7 @@ const VendorDashboard = () => {
                             <div key={exp._id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow group">
                                 <div className="relative h-48 overflow-hidden">
                                     <img
-                                        src={exp.images[0] || 'https://placehold.co/600x400'}
+                                        src={exp.images[0] ? (exp.images[0].startsWith('http') ? exp.images[0] : `${API_URL.replace('/api', '')}${exp.images[0]}`) : 'https://placehold.co/600x400'}
                                         alt={exp.title}
                                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                                     />

@@ -177,18 +177,18 @@ const ExperienceDetail = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-2 h-[300px] md:h-[450px] rounded-2xl overflow-hidden relative group">
                     {/* Main Image */}
                     <div className="md:col-span-2 h-full relative cursor-pointer">
-                        <img src={experience.images?.[0] || 'https://placehold.co/800x600?text=No+Image'} alt={experience.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                        <img src={experience.images?.[0] ? (experience.images[0].startsWith('http') ? experience.images[0] : `${API_URL.replace('/api', '')}${experience.images[0]}`) : 'https://placehold.co/800x600?text=No+Image'} alt={experience.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                     </div>
                     {/* Side Images */}
                     <div className="hidden md:block h-full cursor-pointer">
-                        <img src={experience.images?.[1] || experience.images?.[0] || 'https://placehold.co/400x300?text=Image+2'} alt="Gallery 2" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                        <img src={experience.images?.[1] ? (experience.images[1].startsWith('http') ? experience.images[1] : `${API_URL.replace('/api', '')}${experience.images[1]}`) : (experience.images?.[0] ? (experience.images[0].startsWith('http') ? experience.images[0] : `${API_URL.replace('/api', '')}${experience.images[0]}`) : 'https://placehold.co/400x300?text=Image+2')} alt="Gallery 2" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                     </div>
                     <div className="hidden md:flex flex-col gap-2 h-full">
                         <div className="flex-1 overflow-hidden cursor-pointer">
-                            <img src={experience.images?.[2] || experience.images?.[0] || 'https://placehold.co/400x300?text=Image+3'} alt="Gallery 3" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                            <img src={experience.images?.[2] ? (experience.images[2].startsWith('http') ? experience.images[2] : `${API_URL.replace('/api', '')}${experience.images[2]}`) : (experience.images?.[0] ? (experience.images[0].startsWith('http') ? experience.images[0] : `${API_URL.replace('/api', '')}${experience.images[0]}`) : 'https://placehold.co/400x300?text=Image+3')} alt="Gallery 3" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                         </div>
                         <div className="flex-1 overflow-hidden cursor-pointer relative">
-                            <img src={experience.images?.[3] || experience.images?.[0] || 'https://placehold.co/400x300?text=Image+4'} alt="Gallery 4" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
+                            <img src={experience.images?.[3] ? (experience.images[3].startsWith('http') ? experience.images[3] : `${API_URL.replace('/api', '')}${experience.images[3]}`) : (experience.images?.[0] ? (experience.images[0].startsWith('http') ? experience.images[0] : `${API_URL.replace('/api', '')}${experience.images[0]}`) : 'https://placehold.co/400x300?text=Image+4')} alt="Gallery 4" className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
                             <button className="absolute bottom-4 right-4 bg-white px-3 py-1.5 rounded-lg text-sm font-bold shadow-md hover:bg-gray-50 transition-colors flex items-center gap-2">
                                 <FaCalendarAlt /> View photos
                             </button>
