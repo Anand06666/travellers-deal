@@ -5,7 +5,7 @@ import { API_URL } from '../config/api';
 import { AuthContext } from '../context/AuthContext';
 import {
     FaPlus, FaEdit, FaTrash, FaBoxOpen, FaWallet,
-    FaClipboardList, FaChartLine, FaCalendarAlt, FaStar
+    FaClipboardList, FaChartLine, FaCalendarAlt, FaStar, FaCheck, FaTimes
 } from 'react-icons/fa';
 
 const VendorDashboard = () => {
@@ -58,6 +58,29 @@ const VendorDashboard = () => {
                 console.error('Error deleting experience:', error);
                 alert('Failed to delete experience');
             }
+        }
+    };
+
+    const handleStatusUpdate = async (bookingId, newStatus) => {
+        try {
+            const token = localStorage.getItem('token');
+            const config = {
+                headers: { Authorization: `Bearer ${token}` },
+            };
+
+            const response = await axios.put(
+                `${API_URL}/bookings/${bookingId}/status`,
+                { status: newStatus },
+                config
+            );
+
+            // Update local state
+            setBookings(bookings.map(b =>
+                b._id === bookingId ? { ...b, status: response.data.status } : b
+            ));
+        } catch (error) {
+            console.error('Error updating booking status:', error);
+            alert('Failed to update booking status');
         }
     };
 
@@ -298,7 +321,28 @@ const VendorDashboard = () => {
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
-                                                <button className="text-primary hover:text-cyan-700 font-medium text-sm">Details</button>
+                                                {booking.status === 'pending' ? (
+                                                    <div className="flex justify-end gap-2">
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(booking._id, 'confirmed')}
+                                                            className="bg-green-100 hover:bg-green-200 text-green-700 p-2 rounded-full transition-colors"
+                                                            title="Accept Booking"
+                                                        >
+                                                            <FaCheck size={14} />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleStatusUpdate(booking._id, 'cancelled')}
+                                                            className="bg-red-100 hover:bg-red-200 text-red-700 p-2 rounded-full transition-colors"
+                                                            title="Reject Booking"
+                                                        >
+                                                            <FaTimes size={14} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-gray-400 text-xs italic">
+                                                        {booking.status === 'confirmed' ? 'Accepted' : 'Processed'}
+                                                    </span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}

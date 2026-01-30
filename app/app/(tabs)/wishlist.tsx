@@ -1,11 +1,12 @@
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
-import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl } from "react-native";
+import { Dimensions, FlatList, Image, Text, TouchableOpacity, View, ActivityIndicator, RefreshControl, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import ExperienceDetail from "../../components/ExperienceDetail";
 import { API_URL } from "../../constants/Config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
+import { formatPrice } from "../../utils/currency";
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +21,7 @@ interface WishlistItem {
     features: string;
     isOriginal?: boolean;
     certified?: boolean;
+    currency?: string;
     description?: string;
 }
 
@@ -58,7 +60,8 @@ export default function WishlistScreen() {
                     features: item.duration ? `${item.duration} • ${item.location?.city || 'Unknown'}` : 'Details inside',
                     isOriginal: false, // Defaulting as backend doesn't seem to have this flag yet
                     certified: false, // Defaulting
-                    description: item.description
+                    description: item.description,
+                    currency: item.currency || 'USD'
                 }));
                 setWishlist(mappedWishlist);
             }
@@ -81,6 +84,33 @@ export default function WishlistScreen() {
         fetchWishlist();
     }, []);
 
+    const handleRemoveFromWishlist = async (id: string) => {
+        try {
+            const userInfo = await AsyncStorage.getItem('userInfo');
+            if (!userInfo) return;
+            const { token } = JSON.parse(userInfo);
+
+            // Optimistic update
+            setWishlist(current => current.filter(item => item.id !== id));
+
+            const response = await fetch(`${API_URL}/users/wishlist/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                // Revert if failed (optional, or just fetch again)
+                fetchWishlist();
+                Alert.alert("Error", "Failed to remove item");
+            }
+        } catch (error) {
+            console.error("Error removing from wishlist:", error);
+            fetchWishlist();
+        }
+    };
+
     const renderWishlistCard = ({ item }: { item: WishlistItem }) => (
         <TouchableOpacity
             activeOpacity={0.9}
@@ -98,11 +128,10 @@ export default function WishlistScreen() {
                     </View>
                 )}
 
-                {/* 
-                  TODO: Implement Remove from Wishlist function.
-                  For now keeping the UI element static or purely visual.
-                */}
-                <TouchableOpacity className="absolute top-3 right-3 w-9 h-9 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-lg">
+                <TouchableOpacity
+                    onPress={() => handleRemoveFromWishlist(item.id)}
+                    className="absolute top-3 right-3 w-9 h-9 bg-white dark:bg-gray-800 rounded-full items-center justify-center shadow-lg"
+                >
                     <Ionicons name="heart" size={20} color="#ef4444" />
                 </TouchableOpacity>
             </View>
@@ -130,7 +159,7 @@ export default function WishlistScreen() {
                 <View className="flex-row items-center justify-between mt-4">
                     <View>
                         <Text className="text-gray-500 dark:text-gray-400 text-[10px]">From</Text>
-                        <Text className="text-gray-900 dark:text-white font-extrabold text-xl">₹{item.price}</Text>
+                        <Text className="text-gray-900 dark:text-white font-extrabold text-xl">{formatPrice(item.price, item.currency || 'USD')}</Text>
                     </View>
                     <TouchableOpacity className="bg-[#002b5c] dark:bg-[#58a6ff] px-6 py-2.5 rounded-full">
                         <Text className="text-white font-bold text-sm">View details</Text>

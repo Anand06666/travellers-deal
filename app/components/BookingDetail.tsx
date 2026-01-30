@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Image, Modal, Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -50,7 +50,35 @@ interface Props {
 export default function BookingDetail({ visible, booking, onClose }: Props) {
     const insets = useSafeAreaInsets();
 
-    if (!visible || !booking) {
+    const displayBooking = useMemo(() => {
+        if (!booking) return null;
+        if ('raw' in booking) return booking as BookingDisplayItem;
+        const b = booking as Booking;
+        return {
+            id: b._id,
+            title: b.experience?.title || 'Trip',
+            date: b.date,
+            amount: `₹${b.totalPrice}`,
+            status: b.status,
+            image: b.experience?.images?.[0] || '',
+            itinerary: b.experience?.itinerary?.map(i => ({
+                title: i.title,
+                location: b.experience?.location?.city || '',
+                time: 'N/A'
+            })),
+            payment: {
+                total: `₹${b.totalPrice}`,
+                transactionId: b.paymentId
+            },
+            raw: b
+        } as unknown as BookingDisplayItem;
+    }, [booking]);
+
+    // Derived state
+    const actualBooking = (booking as any)?.raw || booking;
+    const experience = actualBooking?.experience || {};
+
+    if (!visible || !displayBooking) {
         return null;
     }
 
@@ -66,7 +94,7 @@ export default function BookingDetail({ visible, booking, onClose }: Props) {
     };
 
     const handleDownloadTicket = async () => {
-        if (!booking) return;
+        if (!displayBooking) return;
 
         const htmlContent = `
             <!DOCTYPE html>
@@ -101,26 +129,26 @@ export default function BookingDetail({ visible, booking, onClose }: Props) {
                     <div class="info-grid">
                         <div class="info-item">
                             <div class="label">Booking ID</div>
-                            <div class="value">${booking.id}</div>
+                            <div class="value">${displayBooking.id}</div>
                         </div>
                         <div class="info-item">
                             <div class="label">Status</div>
-                            <div class="value" style="color: ${getStatusColor(booking.status)}">${booking.status.toUpperCase()}</div>
+                            <div class="value" style="color: ${getStatusColor(displayBooking.status)}">${displayBooking.status.toUpperCase()}</div>
                         </div>
                         <div class="info-item">
                             <div class="label">Experience</div>
-                            <div class="value">${booking.title}</div>
+                            <div class="value">${displayBooking.title}</div>
                         </div>
                         <div class="info-item">
                             <div class="label">Date</div>
-                            <div class="value">${booking.date}</div>
+                            <div class="value">${displayBooking.date}</div>
                         </div>
                     </div>
                 </div>
 
                 <div class="section">
                     <div class="section-title">Itinerary</div>
-                    ${booking.itinerary?.map(item => `
+                    ${displayBooking.itinerary?.map((item: any) => `
                         <div class="itinerary-item">
                             <div class="value">${item.title}</div>
                             <div class="subtitle">${item.location} | ${item.time}</div>
@@ -134,11 +162,11 @@ export default function BookingDetail({ visible, booking, onClose }: Props) {
                         <div class="info-grid">
                             <div class="info-item">
                                 <div class="label">Total Amount Paid</div>
-                                <div class="value" style="font-size: 20px; color: #002b5c;">${booking.payment?.total}</div>
+                                <div class="value" style="font-size: 20px; color: #002b5c;">${displayBooking.payment?.total}</div>
                             </div>
                             <div class="info-item">
                                 <div class="label">Transaction ID</div>
-                                <div class="value">${booking.payment?.transactionId}</div>
+                                <div class="value">${displayBooking.payment?.transactionId}</div>
                             </div>
                         </div>
                     </div>
@@ -204,7 +232,7 @@ export default function BookingDetail({ visible, booking, onClose }: Props) {
                     <View className="px-6 mb-8">
                         <Text className="text-gray-900 dark:text-white font-black text-xl mb-6">Itinerary</Text>
 
-                        {Array.isArray(experience.itinerary) && experience.itinerary.map((item, index) => (
+                        {Array.isArray(experience.itinerary) && experience.itinerary.map((item: any, index: number) => (
                             <View key={index} className="flex-row">
                                 <View className="items-center mr-4">
                                     <View
@@ -228,27 +256,7 @@ export default function BookingDetail({ visible, booking, onClose }: Props) {
                         ))}
                     </View>
 
-                    {/* MAP SECTION */}
-                    <View className="px-6 mb-8">
-                        <Text className="text-gray-900 dark:text-white font-black text-xl mb-4">Trip Map</Text>
-                        <View className="bg-white dark:bg-[#1c1c1e] rounded-3xl overflow-hidden h-48 border border-gray-100 dark:border-gray-800 shadow-sm relative">
-                            <Image
-                                source={{ uri: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80' }}
-                                className="w-full h-full opacity-40"
-                            />
-                            <View className="absolute inset-0 items-center justify-center">
-                                <View className="bg-white dark:bg-gray-800 px-4 py-2 rounded-full shadow-lg border border-gray-100 dark:border-gray-700 flex-row items-center">
-                                    <Ionicons name="map" size={16} color="#002b5c" className="text-[#002b5c] dark:text-[#58a6ff]" />
-                                    <Text className="text-[#002b5c] dark:text-[#58a6ff] font-bold text-xs ml-2">Interactive map coming soon</Text>
-                                </View>
 
-                                {/* MOCK PATH */}
-                                <View className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#002b5c]/30 dark:bg-blue-500/30 border-dashed border border-[#002b5c] dark:border-blue-500" />
-                                <Ionicons name="pin" size={24} color="#ef4444" className="absolute top-[40%] left-[25%]" />
-                                <Ionicons name="navigate" size={24} color="#002b5c" className="absolute top-[55%] right-[25%] text-[#002b5c] dark:text-blue-400" />
-                            </View>
-                        </View>
-                    </View>
 
                     {/* PAYMENT DETAILS */}
                     <View className="bg-white dark:bg-[#1c1c1e] rounded-3xl m-6 p-6 shadow-sm border border-gray-100 dark:border-gray-800">

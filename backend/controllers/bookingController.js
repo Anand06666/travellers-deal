@@ -72,4 +72,31 @@ const getVendorBookings = async (req, res) => {
     }
 };
 
-module.exports = { createBooking, getMyBookings, getVendorBookings };
+// @desc    Update booking status (Vendor only)
+// @route   PUT /api/bookings/:id/status
+// @access  Private/Vendor
+const updateBookingStatus = async (req, res) => {
+    const { status } = req.body;
+
+    try {
+        const booking = await Booking.findById(req.params.id).populate('experience');
+
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        // Verify that the logged-in user is the vendor of this experience
+        if (booking.experience.vendor.toString() !== req.user._id.toString()) {
+            return res.status(401).json({ message: 'Not authorized to update this booking' });
+        }
+
+        booking.status = status;
+        const updatedBooking = await booking.save();
+
+        res.json(updatedBooking);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+module.exports = { createBooking, getMyBookings, getVendorBookings, updateBookingStatus };

@@ -6,7 +6,17 @@ const User = require('../models/User');
 const getWishlist = async (req, res) => {
     try {
         const user = await User.findById(req.user._id).populate('wishlist');
-        res.json(user.wishlist);
+
+        // Filter out nulls (deleted experiences)
+        const activeWishlist = user.wishlist.filter(item => item !== null);
+
+        // If we found nulls, meaning some experiences were deleted, let's update the user
+        if (activeWishlist.length !== user.wishlist.length) {
+            user.wishlist = activeWishlist;
+            await user.save();
+        }
+
+        res.json(activeWishlist);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -17,16 +27,22 @@ const getWishlist = async (req, res) => {
 // @access  Private
 const addToWishlist = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
         const experienceId = req.params.id;
 
-        if (user.wishlist.includes(experienceId)) {
-            return res.status(400).json({ message: 'Experience already in wishlist' });
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $addToSet: { wishlist: experienceId } },
+            { new: true }
+        ).populate('wishlist');
+
+        const activeWishlist = user.wishlist.filter(item => item !== null);
+
+        if (activeWishlist.length !== user.wishlist.length) {
+            user.wishlist = activeWishlist;
+            await user.save();
         }
 
-        user.wishlist.push(experienceId);
-        await user.save();
-        res.json(user.wishlist);
+        res.json(activeWishlist);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -37,12 +53,22 @@ const addToWishlist = async (req, res) => {
 // @access  Private
 const removeFromWishlist = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
         const experienceId = req.params.id;
 
-        user.wishlist = user.wishlist.filter(id => id.toString() !== experienceId);
-        await user.save();
-        res.json(user.wishlist);
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $pull: { wishlist: experienceId } },
+            { new: true }
+        ).populate('wishlist');
+
+        const activeWishlist = user.wishlist.filter(item => item !== null);
+
+        if (activeWishlist.length !== user.wishlist.length) {
+            user.wishlist = activeWishlist;
+            await user.save();
+        }
+
+        res.json(activeWishlist);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

@@ -5,6 +5,8 @@ import { Alert, Dimensions, Linking, Modal, ScrollView, Text, TextInput, Touchab
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { API_URL } from "../constants/Config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import RazorpayCheckout from 'react-native-razorpay';
+import { formatPrice } from "../app/utils/currency";
 
 const { width } = Dimensions.get('window');
 
@@ -16,29 +18,26 @@ interface Props {
         title: string;
         price: string;
         image: string;
+        currency?: string;
     } | null;
     selectedDate: string | null;
+    selectedTime: string | null;
 }
 
-type Step = 'pickup' | 'payment' | 'card_entry' | 'success';
 
-export default function BookingFlow({ visible, onClose, experience, selectedDate }: Props) {
+type Step = 'payment' | 'success';
+
+
+export default function BookingFlow({ visible, onClose, experience, selectedDate, selectedTime }: Props) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const [step, setStep] = useState<Step>('pickup');
-    const [pickupLocation, setPickupLocation] = useState('');
+    const [step, setStep] = useState<Step>('payment');
     const [paymentMethod, setPaymentMethod] = useState<'card' | 'upi'>('card');
     const [loading, setLoading] = useState(false);
 
-    // Card Details State
-    const [cardNumber, setCardNumber] = useState('');
-    const [cardName, setCardName] = useState('');
-    const [expiry, setExpiry] = useState('');
-    const [cvv, setCvv] = useState('');
-
     if (!experience) return null;
 
-    const createBooking = async () => {
+    const initiateRazorpayPayment = async () => {
         setLoading(true);
         try {
             const userInfo = await AsyncStorage.getItem('userInfo');
@@ -47,10 +46,107 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 setLoading(false);
                 return;
             }
-            const { token } = JSON.parse(userInfo);
+            const { token, name, email, mobile } = JSON.parse(userInfo); // Assuming user object has these fields directly or strictly inside 'user' key. Let's check AuthContext usage or storage structure. usually it is { token, ...user }.
 
-            // Parse price (remove commas)
-            const priceNumeric = parseFloat(experience.price.replace(/,/g, ''));
+            // 1. Create Order
+            const priceString = String(experience.price || '0');
+            const amount = parseFloat(priceString.replace(/,/g, ''));
+            const orderRes = await fetch(`${API_URL}/payments/create-order`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    amount: Math.round(amount * 100), // in smallest unit
+                    currency: experience.currency || "USD" // Ensure backend handles USD conversion if needed or Razorpay supports it
+                })
+            });
+
+            const orderData = await orderRes.json();
+            if (!orderRes.ok) {
+                Alert.alert("Error", orderData.message || "Failed to create order");
+                setLoading(false);
+                return;
+            }
+
+            // 2. Get Key
+            const keyRes = await fetch(`${API_URL}/payments/key`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const { keyId } = await keyRes.json();
+
+            // 3. Open Razorpay
+            const options = {
+                description: experience.title,
+                image: experience.image,
+                currency: orderData.currency,
+                key: keyId,
+                amount: orderData.amount,
+                name: "Travellers Deal",
+                order_id: orderData.id, // Replace with actual order_id from backend
+                prefill: {
+                    email: email || 'user@example.com',
+                    contact: mobile || '9999999999',
+                    name: name || 'Traveller'
+                },
+                theme: { color: '#002b5c' }
+            };
+
+            RazorpayCheckout.open(options).then(async (data: any) => {
+                // handle success
+                // 4. Verify Payment
+                try {
+                    const verifyRes = await fetch(`${API_URL}/payments/verify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            razorpay_order_id: data.razorpay_order_id,
+                            razorpay_payment_id: data.razorpay_payment_id,
+                            razorpay_signature: data.razorpay_signature
+                        })
+                    });
+
+                    const verifyData = await verifyRes.json();
+
+                    if (verifyData.status === 'success') {
+                        await createBooking(data.razorpay_payment_id);
+                    } else {
+                        Alert.alert("Payment Verification Failed", "Please contact support if money was deducted.");
+                    }
+                } catch (verifyError) {
+                    console.error("Verification Error", verifyError);
+                    Alert.alert("Error", "Payment verified failed locally");
+                }
+            }).catch((error: any) => {
+                // handle failure
+                if (error.code === 0) {
+                    // Payment cancelled by user, do nothing or show toast
+                    console.log("Payment Cancelled");
+                } else {
+                    Alert.alert("Error", `Payment failed: ${error.description}`);
+                }
+            });
+
+        } catch (error) {
+            console.error("Payment Init Error:", error);
+            Alert.alert("Error", "Something went wrong initializing payment");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createBooking = async (paymentId: string) => {
+        setLoading(true);
+        try {
+            const userInfo = await AsyncStorage.getItem('userInfo');
+            const { token } = JSON.parse(userInfo || '{}');
+
+            const priceString = String(experience.price || '0');
+            const priceNumeric = parseFloat(priceString.replace(/,/g, ''));
 
             const response = await fetch(`${API_URL}/bookings`, {
                 method: 'POST',
@@ -61,9 +157,11 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 body: JSON.stringify({
                     experienceId: experience.id,
                     date: selectedDate ? new Date(selectedDate).toISOString() : new Date().toISOString(),
-                    slots: 1, // Defaulting to 1 as quantity selector is not in this flow yet
-                    timeSlot: "10:00 AM", // Default or need selection
-                    totalPrice: priceNumeric
+                    slots: 1,
+                    timeSlot: selectedTime || "10:00 AM",
+                    totalPrice: priceNumeric,
+                    paymentStatus: 'paid',
+                    paymentId: paymentId
                 })
             });
 
@@ -82,69 +180,14 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
         }
     };
 
-    const handleUPIPayment = async () => {
-        const upiId = "travellersdeal@okaxis"; // Sample merchant UPI ID
-        const name = "Travellers Deal";
-        const amount = experience.price.replace(/,/g, '');
-        const url = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR`;
-
-        try {
-            const canOpen = await Linking.canOpenURL(url);
-            if (canOpen) {
-                await Linking.openURL(url);
-                // Assume success returns here or we simulate it
-                // In real world, we would verify payment status with backend
-                await createBooking();
-            } else {
-                // Fallback if UPI app not found, just simulate success for this demo
-                // or ask user to use card. 
-                // For now, let's proceed to create booking to satisfy "backend connection"
-                await createBooking();
-            }
-        } catch (err) {
-            console.error("Error opening UPI app:", err);
-            // Even if UPI fails to launch, we might want to allow testing
-            await createBooking();
-        }
-    };
-
     const handleNext = async () => {
-        if (step === 'pickup') {
-            setStep('payment');
-        } else if (step === 'payment') {
-            if (paymentMethod === 'upi') {
-                handleUPIPayment();
-            } else {
-                setStep('card_entry');
-            }
-        } else if (step === 'card_entry') {
-            // Basic validation
-            if (cardNumber.length >= 16 && cardName && expiry.length === 5 && cvv.length >= 3) {
-                await createBooking();
-            } else {
-                Alert.alert("Invalid Details", "Please check your card information and try again.");
-            }
-        }
-    };
-
-    const formatCardNumber = (text: string) => {
-        const cleaned = text.replace(/\D/g, '');
-        const matched = cleaned.match(/.{1,4}/g);
-        if (matched) setCardNumber(matched.join(' '));
-        else setCardNumber(cleaned);
-    };
-
-    const formatExpiry = (text: string) => {
-        const cleaned = text.replace(/\D/g, '');
-        if (cleaned.length >= 2) {
-            setExpiry(`${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}`);
-        } else {
-            setExpiry(cleaned);
+        if (step === 'payment') {
+            initiateRazorpayPayment();
         }
     };
 
     const handleFinish = () => {
-        setStep('pickup'); // Reset for next time
+        setStep('payment'); // Reset for next time
         onClose();
         router.push('/(tabs)/bookings');
     };
@@ -158,44 +201,13 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 <Ionicons name="close" size={24} color="#6b7280" />
             </TouchableOpacity>
             <Text className="text-[#002b5c] dark:text-[#58a6ff] font-black text-lg">
-                {step === 'pickup' ? 'Select Pickup' :
-                    step === 'payment' ? 'Payment' :
-                        step === 'card_entry' ? 'Card Details' : 'Confirmed'}
+                {step === 'payment' ? 'Payment' : 'Confirmed'}
             </Text>
             <View className="w-10" />
         </View>
     );
 
-    const renderPickupStep = () => (
-        <View className="p-6">
-            <View className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-2xl mb-8 flex-row items-center">
-                <Ionicons name="information-circle" size={20} color="#3b82f6" />
-                <Text className="text-blue-700 dark:text-blue-300 text-xs font-bold ml-2 flex-1">
-                    Complimentary pickup is available for all TravellersDeal Original experiences.
-                </Text>
-            </View>
 
-            <Text className="text-gray-900 dark:text-white font-extrabold text-xl mb-4">Where should we pick you up?</Text>
-
-            <View className="relative mb-6">
-                <View className="absolute left-4 top-4 z-10">
-                    <Ionicons name="location" size={20} color="#6b7280" />
-                </View>
-                <TextInput
-                    placeholder="Enter hotel or address"
-                    className="bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 rounded-2xl py-4 pl-12 pr-4 text-gray-900 dark:text-white text-base"
-                    placeholderTextColor="#9ca3af"
-                    value={pickupLocation}
-                    onChangeText={setPickupLocation}
-                />
-            </View>
-
-            <View className="bg-gray-100 dark:bg-[#1c1c1e] h-[200px] rounded-3xl overflow-hidden items-center justify-center border border-gray-200 dark:border-gray-800">
-                <Ionicons name="map" size={40} color="#9ca3af" opacity={0.3} />
-                <Text className="text-gray-400 dark:text-gray-500 font-bold mt-2">Map simulation</Text>
-            </View>
-        </View>
-    );
 
     const renderPaymentStep = () => (
         <View className="p-6">
@@ -203,7 +215,7 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 <Text className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-widest mb-4">Price Summary</Text>
                 <View className="flex-row justify-between mb-2">
                     <Text className="text-gray-600 dark:text-gray-400">Package (1 Person)</Text>
-                    <Text className="text-gray-900 dark:text-white font-bold">₹{experience.price}</Text>
+                    <Text className="text-gray-900 dark:text-white font-bold">{formatPrice(experience.price, experience.currency || 'USD')}</Text>
                 </View>
                 <View className="flex-row justify-between mb-2">
                     <Text className="text-gray-600 dark:text-gray-400">GST (18%)</Text>
@@ -212,34 +224,19 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 <View className="h-[1px] bg-gray-100 dark:bg-gray-800 my-4" />
                 <View className="flex-row justify-between items-center">
                     <Text className="text-gray-900 dark:text-white font-black text-lg">Total Amount</Text>
-                    <Text className="text-[#002b5c] dark:text-[#58a6ff] font-black text-2xl">₹{experience.price}</Text>
+                    <Text className="text-[#002b5c] dark:text-[#58a6ff] font-black text-2xl">{formatPrice(experience.price, experience.currency || 'USD')}</Text>
+                </View>
+                <View className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <Text className="text-gray-500 dark:text-gray-400 text-xs font-bold mb-1">SELECTED SLOT</Text>
+                    <Text className="text-gray-900 dark:text-white font-bold text-base">{selectedDate} at {selectedTime}</Text>
                 </View>
             </View>
 
-            <Text className="text-gray-900 dark:text-white font-extrabold text-xl mb-6">Select Payment Method</Text>
-
-            <TouchableOpacity
-                onPress={() => setPaymentMethod('card')}
-                className={`flex-row items-center p-4 rounded-2xl border-2 mb-4 ${paymentMethod === 'card' ? 'border-[#002b5c] dark:border-[#58a6ff] bg-blue-50/30 dark:bg-blue-900/10' : 'border-gray-100 dark:border-gray-800'}`}
-            >
-                <View className={`w-6 h-6 rounded-full border-2 items-center justify-center mr-3 ${paymentMethod === 'card' ? 'border-[#002b5c] dark:border-[#58a6ff]' : 'border-gray-300 dark:border-gray-600'}`}>
-                    {paymentMethod === 'card' && <View className="w-3 h-3 rounded-full bg-[#002b5c] dark:bg-[#58a6ff]" />}
-                </View>
-                <Ionicons name="card" size={24} color="#6b7280" />
-                <Text className="text-gray-900 dark:text-white font-bold ml-3">Credit / Debit Card</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-                onPress={() => setPaymentMethod('upi')}
-                className={`flex-row items-center p-4 rounded-2xl border-2 mb-4 ${paymentMethod === 'upi' ? 'border-[#002b5c] dark:border-[#58a6ff] bg-blue-50/30 dark:bg-blue-900/10' : 'border-gray-100 dark:border-gray-800'}`}
-            >
-                <View className={`w-6 h-6 rounded-full border-2 items-center justify-center mr-3 ${paymentMethod === 'upi' ? 'border-[#002b5c] dark:border-[#58a6ff]' : 'border-gray-300 dark:border-gray-600'}`}>
-                    {paymentMethod === 'upi' && <View className="w-3 h-3 rounded-full bg-[#002b5c] dark:bg-[#58a6ff]" />}
-                </View>
-                <Ionicons name="phone-portrait-outline" size={24} color="#6b7280" />
-                <Text className="text-gray-900 dark:text-white font-bold ml-3">UPI (PhonePe, GPay, Paytm)</Text>
-            </TouchableOpacity>
-        </View>
+            <Text className="text-center text-gray-500 dark:text-gray-400 mb-6">
+                You will be redirected to Razorpay securely to complete your payment.
+                Reference ID: #ORD-{Math.floor(Math.random() * 100000)}
+            </Text>
+        </View >
     );
 
     const renderSuccessStep = () => (
@@ -259,88 +256,13 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 </View>
                 <View className="flex-row items-center">
                     <Ionicons name="location" size={20} color="#6b7280" />
-                    <Text className="text-gray-600 dark:text-gray-300 font-bold ml-3" numberOfLines={1}>{pickupLocation || 'Pickup location not specified'}</Text>
+                    <Text className="text-gray-600 dark:text-gray-300 font-bold ml-3" numberOfLines={1}>{selectedTime}</Text>
                 </View>
             </View>
         </View>
     );
 
-    const renderCardEntryStep = () => (
-        <View className="p-6">
-            <View className="bg-gray-800 dark:bg-gray-900 rounded-3xl p-6 mb-8 shadow-xl">
-                <View className="flex-row justify-between items-start mb-8">
-                    <Ionicons name="card" size={32} color="white" />
-                    <Text className="text-white/50 font-bold tracking-tighter italic text-xl">VISA</Text>
-                </View>
-                <Text className="text-white font-mono text-xl tracking-[4px] mb-6">
-                    {cardNumber || '**** **** **** ****'}
-                </Text>
-                <View className="flex-row justify-between">
-                    <View>
-                        <Text className="text-white/40 text-[10px] uppercase mb-1">Card Holder</Text>
-                        <Text className="text-white font-bold">{cardName || 'YOUR NAME'}</Text>
-                    </View>
-                    <View>
-                        <Text className="text-white/40 text-[10px] uppercase mb-1">Expires</Text>
-                        <Text className="text-white font-bold">{expiry || 'MM/YY'}</Text>
-                    </View>
-                </View>
-            </View>
 
-            <Text className="text-gray-900 dark:text-white font-extrabold text-xl mb-6">Enter Card Details</Text>
-
-            <View className="space-y-4">
-                <View className="bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 mb-4">
-                    <Text className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase mb-1">Card Number</Text>
-                    <TextInput
-                        placeholder="0000 0000 0000 0000"
-                        keyboardType="numeric"
-                        maxLength={19}
-                        value={cardNumber}
-                        onChangeText={formatCardNumber}
-                        className="text-gray-900 dark:text-white font-bold text-base"
-                    />
-                </View>
-
-                <View className="bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 rounded-2xl p-4 mb-4">
-                    <Text className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase mb-1">Card Holder Name</Text>
-                    <TextInput
-                        placeholder="Rajan Giri"
-                        value={cardName}
-                        onChangeText={setCardName}
-                        autoCapitalize="characters"
-                        className="text-gray-900 dark:text-white font-bold text-base"
-                    />
-                </View>
-
-                <View className="flex-row gap-4">
-                    <View className="flex-1 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-                        <Text className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase mb-1">Expiry</Text>
-                        <TextInput
-                            placeholder="MM/YY"
-                            keyboardType="numeric"
-                            maxLength={5}
-                            value={expiry}
-                            onChangeText={formatExpiry}
-                            className="text-gray-900 dark:text-white font-bold text-base"
-                        />
-                    </View>
-                    <View className="flex-1 bg-gray-50 dark:bg-[#1c1c1e] border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
-                        <Text className="text-gray-400 dark:text-gray-500 text-[10px] font-bold uppercase mb-1">CVV</Text>
-                        <TextInput
-                            placeholder="***"
-                            keyboardType="numeric"
-                            maxLength={3}
-                            secureTextEntry
-                            value={cvv}
-                            onChangeText={setCvv}
-                            className="text-gray-900 dark:text-white font-bold text-base"
-                        />
-                    </View>
-                </View>
-            </View>
-        </View>
-    );
 
     return (
         <Modal
@@ -353,9 +275,7 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                 {renderHeader()}
 
                 <ScrollView showsVerticalScrollIndicator={false} className="flex-1">
-                    {step === 'pickup' && renderPickupStep()}
                     {step === 'payment' && renderPaymentStep()}
-                    {step === 'card_entry' && renderCardEntryStep()}
                     {step === 'success' && renderSuccessStep()}
                 </ScrollView>
 
@@ -366,15 +286,14 @@ export default function BookingFlow({ visible, onClose, experience, selectedDate
                     {step !== 'success' ? (
                         <TouchableOpacity
                             onPress={handleNext}
-                            className={`w-full py-5 rounded-full items-center shadow-lg ${step === 'pickup' && !pickupLocation ? 'bg-gray-300 dark:bg-gray-800' : 'bg-[#002b5c] dark:bg-[#58a6ff]'}`}
-                            disabled={(step === 'pickup' && !pickupLocation) || loading}
+                            className="w-full py-5 rounded-full items-center shadow-lg bg-[#002b5c] dark:bg-[#58a6ff]"
+                            disabled={loading}
                         >
                             {loading ? (
                                 <ActivityIndicator color="white" />
                             ) : (
                                 <Text className="text-white font-black text-lg">
-                                    {step === 'pickup' ? 'Continue to Payment' :
-                                        step === 'payment' ? 'Continue' : 'Pay & Confirm Booking'}
+                                    Pay & Confirm Booking
                                 </Text>
                             )}
                         </TouchableOpacity>

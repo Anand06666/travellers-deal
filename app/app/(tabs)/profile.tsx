@@ -5,10 +5,12 @@ import { useTranslation } from "react-i18next";
 import { FlatList, Modal, ScrollView, Text, TouchableOpacity, View, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { useColorScheme } from "nativewind";
 
 const THEME_KEY = 'user-theme';
 
 export default function ProfileScreen() {
+    const { colorScheme, setColorScheme } = useColorScheme();
     const insets = useSafeAreaInsets();
     const { t, i18n } = useTranslation();
     const [isLanguageModalVisible, setLanguageModalVisible] = useState(false);
@@ -73,6 +75,7 @@ export default function ProfileScreen() {
     const changeAppearance = async (code: 'light' | 'dark' | 'system') => {
         try {
             setCurrentTheme(code);
+            setColorScheme(code);
             await AsyncStorage.setItem(THEME_KEY, code);
             setAppearanceModalVisible(false);
         } catch (e) {
