@@ -115,9 +115,13 @@ const AddExperience = () => {
 
                 let imagePath = data.image;
                 if (!imagePath.startsWith('http')) {
-                    // Ensure we don't end up with double slashes between base and path
-                    const baseUrl = getBaseUrl();
+                    // Robust base URL extraction: remove '/api' suffix safely
+                    // This handles cases like '.../api', '.../api/', or even just base URL if config changes
+                    const baseUrl = API_URL.replace(/\/api\/?$/, '');
+
+                    // Ensure imagePath starts with /
                     const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+
                     imagePath = `${baseUrl}${cleanPath}`;
                 }
 
